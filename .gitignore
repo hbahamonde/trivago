@@ -4,3 +4,5 @@ data.csv
 code_files/figure-latex/
 
 *.log
+
+*.png

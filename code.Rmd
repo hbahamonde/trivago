@@ -81,7 +81,7 @@ dat <- read.csv("data.csv",
 # More on this, at the very end.
 dat.deliverable = dat
 
-p_load(dplyr)
+p_load(dplyr);set.seed(0)
 dat = sample_n(dat, 10000)
 ```
 
@@ -895,3 +895,8 @@ write.csv(csv.dat,'deliverable1.csv') # Export DF to CSV
 2. The second deliverable will be the `.rmd` file. 
 
 3. The third one, will be the PDF that the `.rmd` generates.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(ezknitr)
+ezknit(file = "code.Rmd", out_dir = "docs", keep_html = TRUE, keep_md = FALSE, params = list("dat" = "dat.RData"))
+```
