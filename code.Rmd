@@ -662,10 +662,7 @@ Lets take a quick look at the coefficients, standard errors, and r-squares.
 The table summarizes all models estimated in this case study.
 
 ```{r , message=FALSE, warning=FALSE, echo=FALSE, results='asis'}
-if (!require("pacman")) install.packages("pacman"); library(pacman)
 p_load(texreg)
-
-# table 1
 texreg(list(all.vars.model.ols, # Model 1
             all.vars.model.ols.cook, # Model 2
             all.vars.model.ols.cook.dffits, # Model 3
@@ -692,7 +689,7 @@ texreg(list(all.vars.model.ols, # Model 1
        table = TRUE,
        float.pos = "h",
        caption = ""
-)
+       )
 ```
 
 # Plots
@@ -701,7 +698,7 @@ Lets now take a quick look at the plots.
 
 ```{r , message=FALSE, warning=FALSE}
 p_load(ggplot2,dvmisc)
-p_load(ggplot2)
+
 all.vars.model.ols.plot = ggplot(dat, aes(
         x = hits, 
         y = predict.lm(all.vars.model.ols, type="response"))) +
@@ -721,9 +718,6 @@ all.vars.model.ols.plot = ggplot(dat, aes(
               plot.title = element_text(size=7),
               legend.position="bottom")
 
-
-
-# all.vars.model.ols.cook
 all.vars.model.ols.cook.plot = ggplot(dat.cook, aes(
         x = hits, 
         y = predict.lm(all.vars.model.ols.cook, type="response"))) + 
@@ -743,8 +737,6 @@ all.vars.model.ols.cook.plot = ggplot(dat.cook, aes(
               plot.title = element_text(size=7),
               legend.position="bottom")
 
-
-# all.vars.model.ols.cook.dffits
 all.vars.model.ols.cook.dffits.plot = ggplot(dat.cook.dffits, aes(
         x = hits, 
         y = predict.lm(all.vars.model.ols.cook.dffits, type="response"))) + 
@@ -764,10 +756,6 @@ all.vars.model.ols.cook.dffits.plot = ggplot(dat.cook.dffits, aes(
               plot.title = element_text(size=7),
               legend.position="bottom")
 
-
-
-
-# best.vars.model.ols
 best.vars.model.ols.plot = ggplot(dat.cook.dffits, aes(
         x = hits, 
         y = predict.lm(best.vars.model.ols, type="response"))) + 
@@ -787,9 +775,6 @@ best.vars.model.ols.plot = ggplot(dat.cook.dffits, aes(
               plot.title = element_text(size=7),
               legend.position="bottom")
 
-
-
-# rlm.best.vars.entire.df
 rlm.best.vars.entire.df.plot = ggplot(dat, aes(
         x = hits, 
         y = predict.lm(rlm.best.vars.entire.df, type="response"))) + 
@@ -810,8 +795,6 @@ rlm.best.vars.entire.df.plot = ggplot(dat, aes(
               legend.position="bottom")
 
 
-
-# rlm.best.vars.truncated.df
 rlm.best.vars.truncated.df.plot = ggplot(dat.cook.dffits, aes(
         x = hits, 
         y = predict.lm(rlm.best.vars.truncated.df, type="response"))) + 
@@ -832,7 +815,6 @@ rlm.best.vars.truncated.df.plot = ggplot(dat.cook.dffits, aes(
               legend.position="bottom")
 
 
-# full.model.poisson.plot
 full.model.poisson.plot = ggplot(dat, aes(
         x = hits, 
         y = predict(full.model.poisson, type="response"))) + 
@@ -852,12 +834,6 @@ full.model.poisson.plot = ggplot(dat, aes(
               plot.title = element_text(size=7),
               legend.position="bottom")
 
-
-
-
-
-
-# nbinom.full
 nbinom.full.plot = ggplot(dat, aes(
         x = hits, 
         y = predict(nbinom.full, type="response"))) + 
