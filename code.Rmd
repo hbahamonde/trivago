@@ -700,7 +700,7 @@ texreg(list(all.vars.model.ols, # Model 1
 Lets now take a quick look at the plots.
 
 ```{r , message=FALSE, warning=FALSE}
-# all.vars.model.ols.plot
+p_load(ggplot2,dvmisc)
 p_load(ggplot2)
 all.vars.model.ols.plot = ggplot(dat, aes(
         x = hits, 
