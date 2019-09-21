@@ -697,7 +697,7 @@ texreg(list(all.vars.model.ols, # Model 1
 Lets now take a quick look at the plots.
 
 ```{r , message=FALSE, warning=FALSE}
-p_load(ggplot2,dvmisc)
+p_load(ggplot2,dvmisc,qpcR)
 
 all.vars.model.ols.plot = ggplot(dat, aes(
         x = hits, 
@@ -824,7 +824,7 @@ full.model.poisson.plot = ggplot(dat, aes(
         ggtitle("All Variables, Full Dataset (Poisson Regression)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
-        labs(subtitle = paste("RMSE: ", round(as.numeric(accuracy(list(full.model.poisson), plotit=F, digits=3)["Fit.criteria"]$Fit.criteria["RMSE"]),3))) +
+        labs(subtitle = paste("RMSE: ", round(RMSE(full.model.poisson),3))) +
         theme(axis.text.y = element_text(size=7), 
               axis.text.x = element_text(size=7), 
               axis.title.y = element_text(size=7), 
@@ -843,7 +843,7 @@ nbinom.full.plot = ggplot(dat, aes(
         ggtitle("All Variables, Full Dataset (Negative Binomial Reg.)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
-        labs(subtitle = paste("RMSE: ", round(as.numeric(accuracy(list(nbinom.full), plotit=F, digits=3)["Fit.criteria"]$Fit.criteria["RMSE"]),3))) +
+        labs(subtitle = paste("RMSE: ", round(RMSE(nbinom.full),3))) +
         theme(axis.text.y = element_text(size=7), 
               axis.text.x = element_text(size=7), 
               axis.title.y = element_text(size=7), 
