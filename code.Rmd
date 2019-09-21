@@ -302,7 +302,7 @@ OK. Now lets see how we are doing good-of-fit wise.
 p_load(lattice)
 xyplot(predict.lm(all.vars.model.ols, type="response") ~ dat$hits,
        xlab = "Observed Hits", 
-       ylab = "Predicted Hits (y_hat)",
+       ylab = "Predicted Hits",
        main = "Model 1: Observed v. Fitted")
 ```
 
@@ -457,7 +457,7 @@ dffits.dcooks.distance.ols.fixed <- dffits(all.vars.model.ols.cook.dffits) # get
 p_load(lattice)
 xyplot(dffits.dcooks.distance.ols.fixed ~ predict(all.vars.model.ols.cook.dffits,  type="response"),
        grid = TRUE,
-       xlab = "y_hat", 
+       xlab = "Predicted Hits", 
        ylab = "DFFITS",
        main = "Full Model with Influential Obs. Dropped\n(Low CooksD, and no extreme DFFITs)",
        panel = function(x, ...) {
@@ -581,7 +581,6 @@ p_load(DMwR)
 as.numeric(regr.eval(dat$hits, rlm.best.vars.entire.df$fitted.values)[3]) # RMSE
 ```
 
-# CHECK IF MODEL 2 IS THE BEST
 OK; this is better but not the the best (compared to Model 2).
 
 Lets consider now GLMs. We will focus on two kinds, Poisson and Negative Binomial.
@@ -705,7 +704,7 @@ all.vars.model.ols.plot = ggplot(dat, aes(
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
         theme_bw() +
-        ggtitle("All Variables, Full Dataset (OLS)") + 
+        ggtitle("M1: All Variables, Full Dataset (OLS)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
         labs(subtitle = paste("RMSE: ", round(sqrt(get_mse(all.vars.model.ols)), 3))) +
@@ -724,7 +723,7 @@ all.vars.model.ols.cook.plot = ggplot(dat.cook, aes(
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
         theme_bw() +
-        ggtitle("All Variables, Fixed CooksD Dataset (OLS)") + 
+        ggtitle("M2: All Variables, Fixed CooksD Dataset (OLS)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
         labs(subtitle = paste("RMSE: ", round(sqrt(get_mse(all.vars.model.ols.cook)), 3)))+
@@ -743,7 +742,7 @@ all.vars.model.ols.cook.dffits.plot = ggplot(dat.cook.dffits, aes(
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
         theme_bw() +
-        ggtitle("All Variables, Fixed CooksD and DFFITs Dataset (OLS)") + 
+        ggtitle("M3: All Variables, Fixed CooksD and DFFITs Dataset (OLS)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
         labs(subtitle = paste("RMSE: ", round(sqrt(get_mse(all.vars.model.ols.cook.dffits)), 3))) +
@@ -762,7 +761,7 @@ best.vars.model.ols.plot = ggplot(dat.cook.dffits, aes(
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
         theme_bw() +
-        ggtitle("Best Variables, Fixed CooksD and DFFITs Dataset (OLS)") + 
+        ggtitle("M4: Best Variables, Fixed CooksD and DFFITs Dataset (OLS)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
         labs(subtitle = paste("RMSE: ", round(sqrt(get_mse(best.vars.model.ols)), 3))) +
@@ -781,7 +780,7 @@ rlm.best.vars.entire.df.plot = ggplot(dat, aes(
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
         theme_bw() +
-        ggtitle("All Variables, Full Dataset (Robust Regression)") + 
+        ggtitle("M5: All Variables, Full Dataset (Robust Regression)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
         labs(subtitle = paste("RMSE: ", round(as.numeric(regr.eval(dat$hits, rlm.best.vars.entire.df$fitted.values)[3]), 3))) +
@@ -801,7 +800,7 @@ rlm.best.vars.truncated.df.plot = ggplot(dat.cook.dffits, aes(
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
         theme_bw() +
-        ggtitle("Best Variables, Fixed CooksD and DFFITs Dataset") + 
+        ggtitle("M6: Best Variables, Fixed CooksD and DFFITs Dataset") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
         labs(subtitle = paste("RMSE: ", round(as.numeric(regr.eval(dat.cook.dffits$hits, rlm.best.vars.truncated.df$fitted.values)[3]), 3))) +
@@ -821,7 +820,7 @@ full.model.poisson.plot = ggplot(dat, aes(
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
         theme_bw() +
-        ggtitle("All Variables, Full Dataset (Poisson Regression)") + 
+        ggtitle("M7: All Variables, Full Dataset (Poisson Regression)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
         labs(subtitle = paste("RMSE: ", round(RMSE(full.model.poisson),3))) +
@@ -840,7 +839,7 @@ nbinom.full.plot = ggplot(dat, aes(
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
         theme_bw() +
-        ggtitle("All Variables, Full Dataset (Negative Binomial Reg.)") + 
+        ggtitle("M8: All Variables, Full Dataset (Negative Binomial Reg.)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
         labs(subtitle = paste("RMSE: ", round(RMSE(nbinom.full),3))) +
