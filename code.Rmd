@@ -876,8 +876,10 @@ nbinom.full.plot = ggplot(dat, aes(
               legend.title=element_text(size=12),
               plot.title = element_text(size=7),
               legend.position="bottom")
+```
 
-
+Now, lets plot it.
+```{r , message=FALSE, warning=FALSE}
 # Compile all plots
 p_load(ggpubr)
 ggarrange(all.vars.model.ols.plot,
