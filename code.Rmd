@@ -1,0 +1,919 @@
+---
+title: "Trivago Assignment"
+author: "Hector Bahamonde"
+date: "September, 2019"
+output:
+  pdf_document:
+    toc: no
+  fontsize: 9pt
+  html_document:
+    toc: yes
+    toc_float: yes
+  fig_caption: yes
+  theme: cosmo
+---
+
+
+<style type="text/css">
+
+
+html{
+    width:100%;
+    height:100%;
+}
+
+body{ /* Normal  */
+   font-size: 12px;
+   width: 100%;
+   height: 100%;
+}
+td {  /* Table  */
+   font-size: 8px;
+}
+h1 { /* Header 1 */
+ font-size: 28px;
+ color: DarkBlue;
+}
+h2 { /* Header 2 */
+ font-size: 22px;
+ color: DarkBlue;
+}
+h3 { /* Header 3 */
+ font-size: 18px;
+ color: DarkBlue;
+}
+code.r{ /* Code block */
+  font-size: 10px;
+}
+pre { /* Code block */
+  font-size: 10px
+}
+</style>
+
+# Introduction
+
+Lets begin fresh:
+
+```{r , message=FALSE, warning=FALSE}
+rm(list=ls()) # cleans environment
+graphics.off() # kills all plots
+cat("\014") # cleans the console
+```
+
+
+Now, lets load the `pacman` package (this package conditionally loads uninstalled packages). The package avoids installing already installed packages. The way to load the package and library is as follows `p_load(PACKAGENAME)`. Lets install `pacman`.
+
+```{r , message=FALSE, warning=FALSE}
+if (!require("pacman")) install.packages("pacman"); library(pacman)
+```
+
+Lets load the dataset:
+
+```{r , message=FALSE, warning=FALSE}
+p_load(foreign)
+dat <- read.csv("data.csv",
+                header = T, # lets name the columns
+                sep = ";") # lets separate every entry by ";"
+dat.deliverable = dat # this is to send you guys the row_nums for all cases where hits is NA. More on this, at the very end.
+```
+
+
+Lets summarize/inspect the data:
+
+```{r , message=FALSE, warning=FALSE}
+head(dat)
+summary(dat)
+```
+We could use `View(dat)` if we wanted to take a closer look. The dataset is very large, hence, it wouldn't be that convenient. 
+
+# A few fixes before we start
+
+1. Fixing a typo
+```{r , message=FALSE, warning=FALSE}
+colnames(dat)[9] # typo (i.e. session_durantion).
+colnames(dat)[9] <- "session_duration" # now it's fixed.
+```
+
+
+2. NAs in the DV. Currently, NAs are denoted by "\\N". Will change it to "NA." Note: The "\\" symbol is an escape character. That's why I escaped it.
+```{r , message=FALSE, warning=FALSE}
+dat$hits[dat$hits == "\\N"] <- NA
+```
+
+Now, lets drop all rows that contain NAs in the dataset. We don't want to have NAs in the dependent variable either.
+
+```{r , message=FALSE, warning=FALSE}
+dat = na.omit(dat) # deletes NAs.
+```
+
+3. Variable "hits" is factor. Since we care for the number of hits, will change it to numeric.
+```{r , message=FALSE, warning=FALSE}
+is(dat$hits)[1] # lets ask R what "hits" is.
+dat$hits = as.numeric(dat$hits) # for the rest of the assignment, will treat it as numeric
+```
+
+4. Seconds are factor. Will change it to numeric.
+```{r , message=FALSE, warning=FALSE}
+is(dat$session_duration)[1] # lets ask R what "session_duration" is.
+dat$session_duration = as.numeric(dat$session_duration) # better as numeric.
+```
+
+5. The device used for the session (i.e. "agent_id") is numeric. It should be factor.
+```{r , message=FALSE, warning=FALSE}
+is(dat$agent_id)[1] # lets ask R what "agent_id" is.
+dat$agent_id = as.factor(dat$agent_id) # better as factor.
+```
+
+6. The factor variable "day of the week" is not ordered. Statistically, it won't matter, but we might need it ordered if we want to plot the predicted weekly hits. Lets fix it.
+```{r , message=FALSE, warning=FALSE}
+levels(dat$day_of_week) # see, levels are not ordered. 
+dat$day_of_week = factor(dat$day_of_week,levels(dat$day_of_week)[c(2,6,7,5,1,3,4)])
+```
+
+7. "Entry page" is numeric. It makes much more sense to think about every landing page as a factor variable instead.
+```{r , message=FALSE, warning=FALSE}
+is(dat$entry_page)[1] # lets check what this variable type is.
+dat$entry_page = as.factor(dat$entry_page) # lets change that to factor.
+```
+
+
+Now, it seems that a large part of this distribution, is concentrated in landing pages 2100, 2111, 2113, 2114, 2115 and 2116.
+
+```{r , message=FALSE, warning=FALSE}
+table(dat$entry_page)[1:6]
+
+# loading lattice, for a "nicer" histogram
+p_load(lattice)
+histogram(dat$entry_page, xlab = "Entry Page", breaks = length(levels(dat$entry_page)))
+```
+
+To make a more parsimonius model with less intercepts, I will recode this variable as follows. Will keep "landing pages" 1 to 6, but will create a 7th landing page coded as "0." This residual category will group all other sessions, which many times, had just a couple of sessions only. Lets recode the variable.
+
+```{r , message=FALSE, warning=FALSE}
+levels(dat$entry_page)[levels(dat$entry_page)>"2116"] <- "0"
+```
+
+Now, lets plot the distribution of levels of the new variable:
+```{r , message=FALSE, warning=FALSE}
+p_load(lattice)
+histogram(dat$entry_page)
+```
+
+Ok. This looks way better. Instead of having almost 150 landing pages, we have simplified this variable to the most important ones.
+
+8. Variable "path_id_set", as a variable, is kind of noisy as it is.
+```{r , message=FALSE, warning=FALSE}
+head(dat$path_id_set)
+```
+
+It makes more sense to think of this variable as a count of "locations that were visited during the session" rather than the locations themselves. This is because is hard to model as a function of really specific and almost unique locations.
+
+First, lets count the number of strings in this (as is) character variable. And then, lets sum up all locations. 
+```{r , message=FALSE, warning=FALSE}
+p_load(stringr)
+dat$path_id_set = str_count(as.character(dat$path_id_set), '\\d+')
+```
+
+Now the variable is a count variable. 
+
+*Note*: I assumed that the number 0, or "location 0" (very frequent, btw) was an actual location among other "locations that were visited during the session".
+
+That said, now "path_id_set" is almost only 2's. That is, almost everyone visited two locations.
+```{r , message=FALSE, warning=FALSE}
+p_load(lattice)
+histogram(dat$path_id_set, breaks = 100)
+```
+
+To make a simpler model, I will dichotomize "path_id_set": now observations are either 2 (1) or not (0). Either "i" visited two locations, or not.
+```{r , message=FALSE, warning=FALSE}
+dat$path_id_set = as.numeric(dat$path_id_set == 2)
+
+p_load(lattice)
+histogram(as.factor(dat$path_id_set))
+```
+
+9. Variable "traffic_type" is numeric. It makes much more sense to think of this variable as a factor (email, search engine, etc.).
+```{r , message=FALSE, warning=FALSE}
+is(dat$traffic_type)[1] # is numeric.
+dat$traffic_type = as.factor(dat$traffic_type) # Better as factor.
+```
+
+10. Var. "day_of_week" to numeric (1 = Monday...till 7 = Sunday).
+```{r , message=FALSE, warning=FALSE}
+dat$day_of_week.num = as.numeric(as.factor(dat$day_of_week))
+
+# test
+data.frame(
+  old = dat$day_of_week,
+  new = dat$day_of_week.num
+)[100:110,] # from row 100 to row 110. It looks OK.
+```
+
+# Descriptives
+```{r , message=FALSE, warning=FALSE}
+p_load(lattice)
+histogram(dat$hits) # plot the DV
+```
+**First impressions**: of course, it doesn't look like a normal distribution. It can't be, anyways. The data generating process (the "number of hits") might follow a Poisson distribution. That is, discrete positive numbers. But lets take a closer look at dependent variable. Normal distributions have the same mean, mean, and mode. Lets see:
+
+
+```{r , message=FALSE, warning=FALSE}
+mean(dat$hits) # Mean
+median(dat$hits) # Median
+getmode <- function(v) { # Little function to get the mode.
+        uniqv <- unique(v)
+        uniqv[which.max(tabulate(match(v, uniqv)))]
+        }
+getmode(dat$hits) # Mode
+```
+
+OK. While visual inspection suggests that the DV is *not* normally distributed, the summary statistics shown above suggest that *hits* is pretty much normally distributed. In any case, when I get to the modeling stage, I will still consider a Poisson and a Negative Binomial models (and their corresponding diagnostics) for completeness.
+
+*Few more modifications before we start modeling*: Variable names mess with both TeX and HTML KNITR compilation. Will replace "_" for "."
+
+```{r , message=FALSE, warning=FALSE}
+colnames(dat)[which(names(dat) == "row_num")] <- "row.num"
+colnames(dat)[which(names(dat) == "day_of_week")] <- "day.of.week"
+colnames(dat)[which(names(dat) == "agent_id")] <- "agent.id"
+colnames(dat)[which(names(dat) == "entry_page")] <- "entry.page"
+colnames(dat)[which(names(dat) == "path_id_set")] <- "path.id.set"
+colnames(dat)[which(names(dat) == "traffic_type")] <- "traffic.type"
+colnames(dat)[which(names(dat) == "session_duration")] <- "session.duration"
+colnames(dat)[which(names(dat) == "day_of_week.num")] <- "day.of.week.num"
+colnames(dat)[which(names(dat) == "hour_of_day")] <- "hour.of.day"
+
+save(dat, file = "dat.RData")
+```
+
+# Models
+
+In this section, I will fit the data using several models and strategies. My general approach will be the following:
+
+1. Define a full model with all possible variables.
+2. Estimate a linear model in a stepwise fashion. 
+3. With the selected variables, estimate another linear model.
+4. Run standard diagnostics, inspect fit, check assumptions (heteroskedasticity, etc.).
+5. Consider estimating a robust linear model.
+6. Next, move to GLMs. Investigate the plausibility a Poisson or a Negative Binomial model fits the data better.
+7. Conclude, and recommend the most efficient model.
+
+Lets define the full equation.
+
+```{r , message=FALSE, warning=FALSE}
+formula.all = as.formula(
+        hits ~ 
+                locale + 
+                hour.of.day + 
+                agent.id + 
+                entry.page + 
+                path.id.set + 
+                traffic.type + 
+                session.duration + 
+                day.of.week.num
+        )
+```
+
+Lets fit the data via a linear model.
+
+```{r , message=FALSE, warning=FALSE}
+all.vars.model.ols = lm(formula.all, dat)
+```
+
+Now, before discussing the output of the unrestricted model, lets first find the most efficient subset of variables. Criteria will be minimizing the RMSE. Next, I use  the `ols_step_best_subset` function. Usually stepwise regression selects variables with the lowest p-values. Hence, I decided to take a slighlty different approach by focusing on the RMSE instead.
+
+**Note**: (a) this might take a while, depending on your machine. Also, (b) the outout is very wide, and might not fit the PDF. That's why I'm sending also a HTML file, which you guys may see it from almost every web browser. Most importantly, the column we care about (*MSEP: Estimated error of prediction*), might not appear printed on the PDF.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(olsrr) # for "ols_step_best_subset" function.
+ols_step_best_subset(all.vars.model.ols)
+```
+
+The *MSEP* carries almost the same information as the *RMSE*. You can try calculating the square root of the *MSEP* to obtain the *RMSE.* Hence I'll use the *MSEP* to select the most efficient variables. Models 7 and 8 have statistically speaking, identical predicted errors. Since I'm just scratching the surface now, I will select model 8 which has all possible variables, and begin modeling/cleaning from there.
+
+But lets now calculate the actual *RMSE* of the full model.
+
+```{r , message=FALSE, warning=FALSE}
+sqrt(rev(anova(all.vars.model.ols)$"Mean Sq")[1]) # RMSE
+``` 
+
+OK. Now lets see how we are doing good-of-fit wise. 
+
+```{r , message=FALSE, warning=FALSE}
+p_load(lattice)
+xyplot(predict.lm(all.vars.model.ols, type="response") ~ dat$hits,
+       xlab = "Observed Hits", 
+       ylab = "Predicted Hits (y_hat)",
+       main = "Model 1: Observed v. Fitted")
+```
+
+Not so good. Lots of influence (upper-left corner of plot) and leverage problems here---pretty much, just across all the x-axis. My take, not a good fit (i.e. not a good enough RMSE). 
+
+Lets now plot the error to check normality and homoscedasticity, that is, constant variance on the predicted residuals. Given the poor fit, we can't anticipate promising results at this stage.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(lattice)
+xyplot(all.vars.model.ols$residuals ~ dat$hits,
+       xlab = "Observed Hits", 
+       ylab = "Residuals",
+       main = "Model 1: Residual Plot")
+```
+
+Huge problems here. We should be able to see no patterns, which we do: the residuals go up as the X variable goes up too. That's not a good sign.
+
+One problem of this dataset is that it might have extreme observations (outliers). In this section, I will try to detect those, and evaluate what can we do with those. 
+
+Lets get Cook's distance (a typical measurement of influencial data points), and merge it into our main dataset.
+
+```{r , message=FALSE, warning=FALSE}
+options(scipen=100000000) # increases threshold for scientific notation (it's got very small numbers).
+dat$cooks.all.ols <- cooks.distance(all.vars.model.ols) 
+```
+
+Lets also summarize the Cooks
+
+```{r , message=FALSE, warning=FALSE}
+summary(dat$cooks.all.ols)
+```
+
+And also, lets plot the CooksD.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(lattice)
+xyplot(dat$cooks.all.ols ~ predict(all.vars.model.ols,  type="response"),
+       grid = TRUE,
+       xlab = "Predicted Hits", 
+       ylab = "Cooks D",
+       main = "Model 1: Influencial Observations (Cooks D)",
+       panel = function(x, ...) {
+               panel.xyplot(x, ..., alpha = 0.3)
+               }
+       )
+```
+
+My recomnendation is that we drop all observations that fall above the 3rd quantile. That would mean to keep `r nrow(subset(dat, cooks.all.ols < as.numeric(summary(dat$cooks.all.ols)[5])))` observations. In big data settings, that's descent enough. 
+
+Lets subset the data then.
+
+```{r , message=FALSE, warning=FALSE}
+dat.cook = subset(dat, cooks.all.ols < as.numeric(summary(dat$cooks.all.ols)[5])) 
+```
+
+Now we have a smaller DF, but with less influence problems. Lets fit Model 2, all variables, but using the better dataset (i.e. `dat.cook`).
+
+```{r , message=FALSE, warning=FALSE}
+all.vars.model.ols.cook = lm(formula.all, dat.cook)
+```
+
+OK. Now, lets inspect Cooks distance again.
+
+```{r , message=FALSE, warning=FALSE}
+options(scipen=100000000) # increases threshold for scientific notation (it's got very small numbers).
+dcooks.distance.ols.fixed <- cooks.distance(all.vars.model.ols.cook) # getting Cook's distance.
+# plot
+p_load(lattice)
+xyplot(dcooks.distance.ols.fixed ~ predict(all.vars.model.ols.cook,  type="response"),
+       grid = TRUE,
+       xlab = "Predicted Hits", 
+       ylab = "Cooks D",
+       main = "Model 2: Influencial Observations (Influential Obs. Dropped)",
+       panel = function(x, ...) {
+               panel.xyplot(x, ..., alpha = 0.3)
+       }
+)
+```
+
+Now the problem can be tolerated. But there are still some problems. More on that below. Lets now inspect the RMSE of Model 2.
+
+```{r , message=FALSE, warning=FALSE}
+sqrt(rev(anova(all.vars.model.ols.cook)$"Mean Sq")[1]) # RMSE
+``` 
+
+Not surpsingly, this RMSE is way better than Model 1. Lets see now how we are doing goodness-of-fit wise.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(lattice)
+xyplot(predict(all.vars.model.ols.cook,  type="response") ~ dat.cook$hit,
+       grid = TRUE,
+       xlab = "Observed Hits", 
+       ylab = "Predicted Hits",
+       main = "Model 2: Full Model Without Most Influencial Observations",
+       panel = function(x,
+                y, ...) {
+               panel.xyplot(x, y, ...)
+               panel.lmline(x, y, ...)
+               }
+       )
+``` 
+
+OK. It does look better now. However, we now see that we also have leverage issues.
+
+Now I will concentrate on the DFFITs.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(olsrr)
+ols_plot_dffits(all.vars.model.ols.cook)
+```
+
+Lots of problems here. Lets drop all observations that landed below/above the threshold. First, lets calculate the DFFFITs, so we merge them into our dataset.
+
+```{r , message=FALSE, warning=FALSE}
+dat.cook$dffits.ols = dffits(all.vars.model.ols.cook)
+```
+
+Second, lets plot the distribution of DFFITs, so we actually *see* what we are about to drop.
+
+```{r , message=FALSE, warning=FALSE}
+densityplot(dat.cook$dffits.ols,
+            xlab = "Dffits", 
+            main = "Density of Dffits Resulting of Fitting Model 2\n(Without Most Influencial Observations Dropped)",
+            panel = function(...) {
+                    panel.densityplot(...)
+                    panel.abline(v = c(0.02, -0.02))
+                    }
+            )
+```
+
+The main take away is the following: if we chop the top ends of the distribution (i.e. the ones with high leverage), we still get the most of information out it. Lets drop these data points with high leverage (`r  nrow(dat.cook)- nrow(subset(dat.cook, dffits.ols > - 0.02 & dffits.ols < 0.02))` observations). Actually, is not a lot, but lets see if we improve fit, decreasing error, and getting a better RMSE.
+
+First, lets drop data points with high/low leverage:
+
+```{r , message=FALSE, warning=FALSE}
+dat.cook.dffits = subset(dat.cook, dffits.ols > - 0.02 & dffits.ols < 0.02)
+```
+
+Next, lets fit Model 3, now without high/low DFFITS (and certainly, without high Cooks Distance values).
+
+```{r , message=FALSE, warning=FALSE}
+all.vars.model.ols.cook.dffits = lm(formula.all, dat.cook.dffits)
+```
+
+Now, lets get those DFFITs, so we can plot them.
+
+```{r , message=FALSE, warning=FALSE}
+options(scipen=100000000) # increases threshold for scientific notation (it's got very small numbers).
+dffits.dcooks.distance.ols.fixed <- dffits(all.vars.model.ols.cook.dffits) # getting DFFITs.
+
+# plot
+p_load(lattice)
+xyplot(dffits.dcooks.distance.ols.fixed ~ predict(all.vars.model.ols.cook.dffits,  type="response"),
+       grid = TRUE,
+       xlab = "y_hat", 
+       ylab = "DFFITS",
+       main = "Full Model with Influential Obs. Dropped\n(Low CooksD, and no extreme DFFITs)",
+       panel = function(x, ...) {
+               panel.xyplot(x, ..., alpha = 0.3)
+               }
+       )
+```
+
+Now the problem can be tolerated. Lets get now those *RMSE*s.
+
+```{r , message=FALSE, warning=FALSE}
+sqrt(rev(anova(all.vars.model.ols.cook.dffits)$"Mean Sq")[1]) # RMSE
+```
+
+Not much better. It's almost the same as Model 2, at the price of loosing a couple hundreads observations. In fact, the RMSE is a little bit higher. Lets insepct fit.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(lattice)
+xyplot(predict(all.vars.model.ols.cook.dffits,  type="response") ~ dat.cook.dffits$hit,
+       grid = TRUE,
+       xlab = "Observed Hits", 
+       ylab = "Predicted Hits",
+       main = "Model 3: Full Model Without Most Influencial Observations",
+       panel = function(x,
+                        y, ...) {
+               panel.xyplot(x, y, ...)
+               panel.lmline(x, y, ...)
+               }
+       )
+```
+
+OK, so far we've fitted three models (full, good Cooks, and good Cooks and DFFITs). Lets use this truncated DF (i.e. `dat.cook.dffits`) to take the stepwise regression route. 
+
+```{r , message=FALSE, warning=FALSE}
+p_load(olsrr)
+ols_step_best_subset(all.vars.model.ols.cook.dffits)
+```
+
+If we want to maximize parsimony and minize RMSE, now model 6 does the best job (with 2 less predictors now). Lets define a new formula then, with the best predictors.
+
+```{r , message=FALSE, warning=FALSE}
+formula.best = as.formula(hits ~ locale + agent.id + entry.page + path.id.set + traffic.type + session.duration)
+```
+
+Lets use this formula to fit Model 4, using the `dat.cook.dffits` dataset.
+
+```{r , message=FALSE, warning=FALSE}
+best.vars.model.ols = lm(formula.best, dat.cook.dffits)
+```
+
+Lets inspect goodness of fit.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(lattice)
+xyplot(predict(best.vars.model.ols,  type="response") ~ dat.cook.dffits$hit,
+       grid = TRUE,
+       xlab = "Observed Hits", 
+       ylab = "Predicted Hits",
+       main = "Model 4: Best Model Without Most Influencial Observations",
+       panel = function(x,
+                y, ...) {
+               panel.xyplot(x, y, ...)
+               panel.lmline(x, y, ...)
+               }
+       )
+``` 
+
+Checking homoscedasticity.
+
+```{r , message=FALSE, warning=FALSE}
+ols_plot_cooksd_bar(best.vars.model.ols) # Cooks D
+ols_plot_dffits(best.vars.model.ols) # DFFITs
+```
+
+Cooks D look good. DFFITs look just OK, but good enough. Most leverage observations land just below/above the threshold. We do have around 10 observations (little less perhaps) landing way below the negative threshold.
+
+Lets get now those *RMSE*s.
+
+```{r , message=FALSE, warning=FALSE}
+sqrt(rev(anova(best.vars.model.ols)$"Mean Sq")[1]) # RMSE
+```
+
+Not much better. It's almost the same as Model 3, after loosing a couple hundreads obs. In fact, the RMSE is a little bit higher. Lets try a different strategy.
+
+Now, lets turn to the robust regression. These models weight the contribution of every data point by the size of the standard error: the more far away a data point is, the less "importance" that data point will have. This strategy works in cases like this, where we have leverage/influence issues.
+
+```{r , message=FALSE, warning=FALSE}
+dat$agent.id = as.numeric(as.character(dat$agent.id)) # convert this, as it messes up with the LaTex dollar sign.
+
+p_load(MASS)
+rlm.best.vars.entire.df = rlm(
+        hits ~ locale + agent.id + entry.page + path.id.set + traffic.type + session.duration, 
+        data = dat, 
+        psi = psi.bisquare
+        )
+```
+
+Lets evaluate the RME.
+
+```{r , message=FALSE, warning=FALSE}
+sqrt(rev(anova(rlm.best.vars.entire.df)$"Mean Sq")[1]) # RMSE
+```
+
+Not a very good job. Lets consider Model 6, where we employ the same robust approach, but with the truncated dataset.
+
+```{r , message=FALSE, warning=FALSE}
+dat.cook.dffits$agent.id = as.numeric(as.character(dat.cook.dffits$agent.id))
+
+p_load(MASS)
+rlm.best.vars.truncated.df = rlm(
+        hits ~ locale + agent.id + entry.page + path.id.set + traffic.type + session.duration, 
+        data = dat.cook.dffits,
+        psi = psi.bisquare
+        )
+```
+
+Lets now calculate the RMSE
+
+```{r , message=FALSE, warning=FALSE}
+p_load(DMwR)
+as.numeric(regr.eval(dat$hits, rlm.best.vars.entire.df$fitted.values)[3]) # RMSE
+```
+
+# CHECK IF MODEL 2 IS THE BEST
+OK; this is better but not the the best (compared to Model 2).
+
+Lets consider now GLMs. We will focus on two kinds, Poisson and Negative Binomial.
+
+Does *hits* look like a (theoretical) Poisson distribution?
+
+```{r , message=FALSE, warning=FALSE}
+p_load(vcd)
+distplot(dat$hits, type="poisson")
+```
+
+When the empirical distribution looks alike the theoretical one, we should see a straight line (as we do here). To answer my own question, yes, it definetively looks def like a Poisson distribution.
+
+Lets inspect if *hits* look like a Negative Binomial distribution.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(vcd)
+distplot(dat$hits, type="nbinom")
+```
+
+In this case, it definetively does *not* look like a Negative Binomial distribution. Lets anyways fit both models.
+
+First, we will do a stepwise regression fitting a Poisson model. Lets run the full model first.
+
+```{r , message=FALSE, warning=FALSE}
+full.model.poisson = glm(hits ~ locale + 
+                             hour.of.day +
+                             agent.id + 
+                             entry.page +
+                             path.id.set + 
+                             traffic.type + 
+                             session.duration + 
+                             day.of.week.num,
+                     data = dat, 
+                     family = poisson(link = "log")
+                     )
+```
+
+Second, lets proceed with the stepwise, and try to find the most efficient predictors.
+
+```{r , message=FALSE, warning=FALSE}
+step(full.model.poisson, direction = "both")
+```
+
+This procedure suggest selecting all variables (as done in `full.model.poisson`). Lets inspect the RMSE.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(qpcR)
+RMSE(full.model.poisson)
+```
+
+It turns out that this RMSE is the lowest one so far. However, we should remember that RMSEs across linear and GLMs are not directly comparable; i.e. variances in GLM's predictions aren't constant. Lets check for overdispersion anyways.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(AER)
+dispersiontest(full.model.poisson)
+```
+
+There is evidence of overdispersion (estimated to be 142.4094), violating the assumption of equidispersion. Lets now fit a Negative Binomial for completeness.
+
+```{r , message=FALSE, warning=FALSE}
+nbinom.full = glm.nb(formula.all, data = dat)
+```
+
+Lets now inspect the RMSE.
+
+```{r , message=FALSE, warning=FALSE}
+p_load(qpcR)
+RMSE(nbinom.full)
+```
+
+It's better than the Poisson regression. Overall, the evidence employing GLMs is not conclusive. The data generating process seems to be Poisson, but we do have overdispertion problems.
+
+Lets take a quick look at the coefficients, standard errors, and r-squares.
+
+# Table 
+
+The table summarizes all models estimated in this case study.
+
+```{r , message=FALSE, warning=FALSE, echo=FALSE, results='asis'}
+if (!require("pacman")) install.packages("pacman"); library(pacman)
+p_load(texreg)
+
+# table 1
+texreg(list(all.vars.model.ols, # Model 1
+            all.vars.model.ols.cook, # Model 2
+            all.vars.model.ols.cook.dffits, # Model 3
+            best.vars.model.ols, # Model 4
+            rlm.best.vars.entire.df, # Model 5
+            rlm.best.vars.truncated.df, # Model 6
+            full.model.poisson, # Model 7
+            nbinom.full # Model 8
+            ),
+       custom.model.names = c(
+                "(M1: Ols)",
+                "(M2: Ols)",
+                "(M3: Ols)",
+                "(M4: Ols)",
+                "(M5: Rlm)",
+                "(M6: Rlm)",
+                "(M7: Poisson)",
+                "(M8: Neg Bin)"),
+       label = "tab:1",
+       custom.note = list("%stars. DV: Hits "),
+       #fontsize = "tiny",
+       center = TRUE,
+       digits = 3,
+       table = TRUE,
+       float.pos = "h",
+       caption = ""
+)
+```
+
+# Plots
+
+Lets now take a quick look at the plots.
+
+```{r , message=FALSE, warning=FALSE}
+# all.vars.model.ols.plot
+p_load(ggplot2)
+all.vars.model.ols.plot = ggplot(dat, aes(
+        x = hits, 
+        y = predict.lm(all.vars.model.ols, type="response"))) +
+        geom_smooth(method = "lm", colour = "red") +
+        geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
+        theme_bw() +
+        ggtitle("All Variables, Full Dataset (OLS)") + 
+        scale_y_continuous(name='Hits Predicted') +
+        scale_x_continuous(name='Hits Observed') +
+        labs(subtitle = paste("RMSE: ", round(sqrt(get_mse(all.vars.model.ols)), 3))) +
+        theme(axis.text.y = element_text(size=7), 
+              axis.text.x = element_text(size=7), 
+              axis.title.y = element_text(size=7), 
+              axis.title.x = element_text(size=7), 
+              legend.text=element_text(size=12), 
+              legend.title=element_text(size=12),
+              plot.title = element_text(size=7),
+              legend.position="bottom")
+
+
+
+# all.vars.model.ols.cook
+all.vars.model.ols.cook.plot = ggplot(dat.cook, aes(
+        x = hits, 
+        y = predict.lm(all.vars.model.ols.cook, type="response"))) + 
+        geom_smooth(method = "lm", colour = "red") +
+        geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
+        theme_bw() +
+        ggtitle("All Variables, Fixed CooksD Dataset (OLS)") + 
+        scale_y_continuous(name='Hits Predicted') +
+        scale_x_continuous(name='Hits Observed') +
+        labs(subtitle = paste("RMSE: ", round(sqrt(get_mse(all.vars.model.ols.cook)), 3)))+
+        theme(axis.text.y = element_text(size=7), 
+              axis.text.x = element_text(size=7), 
+              axis.title.y = element_text(size=7), 
+              axis.title.x = element_text(size=7), 
+              legend.text=element_text(size=12), 
+              legend.title=element_text(size=12),
+              plot.title = element_text(size=7),
+              legend.position="bottom")
+
+
+# all.vars.model.ols.cook.dffits
+all.vars.model.ols.cook.dffits.plot = ggplot(dat.cook.dffits, aes(
+        x = hits, 
+        y = predict.lm(all.vars.model.ols.cook.dffits, type="response"))) + 
+        geom_smooth(method = "lm", colour = "red") +
+        geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
+        theme_bw() +
+        ggtitle("All Variables, Fixed CooksD and DFFITs Dataset (OLS)") + 
+        scale_y_continuous(name='Hits Predicted') +
+        scale_x_continuous(name='Hits Observed') +
+        labs(subtitle = paste("RMSE: ", round(sqrt(get_mse(all.vars.model.ols.cook.dffits)), 3))) +
+        theme(axis.text.y = element_text(size=7), 
+              axis.text.x = element_text(size=7), 
+              axis.title.y = element_text(size=7), 
+              axis.title.x = element_text(size=7), 
+              legend.text=element_text(size=12), 
+              legend.title=element_text(size=12),
+              plot.title = element_text(size=7),
+              legend.position="bottom")
+
+
+
+
+# best.vars.model.ols
+best.vars.model.ols.plot = ggplot(dat.cook.dffits, aes(
+        x = hits, 
+        y = predict.lm(best.vars.model.ols, type="response"))) + 
+        geom_smooth(method = "lm", colour = "red") +
+        geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
+        theme_bw() +
+        ggtitle("Best Variables, Fixed CooksD and DFFITs Dataset (OLS)") + 
+        scale_y_continuous(name='Hits Predicted') +
+        scale_x_continuous(name='Hits Observed') +
+        labs(subtitle = paste("RMSE: ", round(sqrt(get_mse(best.vars.model.ols)), 3))) +
+        theme(axis.text.y = element_text(size=7), 
+              axis.text.x = element_text(size=7), 
+              axis.title.y = element_text(size=7), 
+              axis.title.x = element_text(size=7), 
+              legend.text=element_text(size=12), 
+              legend.title=element_text(size=12),
+              plot.title = element_text(size=7),
+              legend.position="bottom")
+
+
+
+# rlm.best.vars.entire.df
+rlm.best.vars.entire.df.plot = ggplot(dat, aes(
+        x = hits, 
+        y = predict.lm(rlm.best.vars.entire.df, type="response"))) + 
+        geom_smooth(method = "lm", colour = "red") +
+        geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
+        theme_bw() +
+        ggtitle("All Variables, Full Dataset (Robust Regression)") + 
+        scale_y_continuous(name='Hits Predicted') +
+        scale_x_continuous(name='Hits Observed') +
+        labs(subtitle = paste("RMSE: ", round(as.numeric(regr.eval(dat$hits, rlm.best.vars.entire.df$fitted.values)[3]), 3))) +
+        theme(axis.text.y = element_text(size=7), 
+              axis.text.x = element_text(size=7), 
+              axis.title.y = element_text(size=7), 
+              axis.title.x = element_text(size=7), 
+              legend.text=element_text(size=12), 
+              legend.title=element_text(size=12),
+              plot.title = element_text(size=7),
+              legend.position="bottom")
+
+
+
+# rlm.best.vars.truncated.df
+rlm.best.vars.truncated.df.plot = ggplot(dat.cook.dffits, aes(
+        x = hits, 
+        y = predict.lm(rlm.best.vars.truncated.df, type="response"))) + 
+        geom_smooth(method = "lm", colour = "red") +
+        geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
+        theme_bw() +
+        ggtitle("Best Variables, Fixed CooksD and DFFITs Dataset") + 
+        scale_y_continuous(name='Hits Predicted') +
+        scale_x_continuous(name='Hits Observed') +
+        labs(subtitle = paste("RMSE: ", round(as.numeric(regr.eval(dat.cook.dffits$hits, rlm.best.vars.truncated.df$fitted.values)[3]), 3))) +
+        theme(axis.text.y = element_text(size=7), 
+              axis.text.x = element_text(size=7), 
+              axis.title.y = element_text(size=7), 
+              axis.title.x = element_text(size=7), 
+              legend.text=element_text(size=12), 
+              legend.title=element_text(size=12),
+              plot.title = element_text(size=7),
+              legend.position="bottom")
+
+
+# full.model.poisson.plot
+full.model.poisson.plot = ggplot(dat, aes(
+        x = hits, 
+        y = predict(full.model.poisson, type="response"))) + 
+        geom_smooth(method = "lm", colour = "red") +
+        geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
+        theme_bw() +
+        ggtitle("All Variables, Full Dataset (Poisson Regression)") + 
+        scale_y_continuous(name='Hits Predicted') +
+        scale_x_continuous(name='Hits Observed') +
+        labs(subtitle = paste("RMSE: ", round(as.numeric(accuracy(list(full.model.poisson), plotit=F, digits=3)["Fit.criteria"]$Fit.criteria["RMSE"]),3))) +
+        theme(axis.text.y = element_text(size=7), 
+              axis.text.x = element_text(size=7), 
+              axis.title.y = element_text(size=7), 
+              axis.title.x = element_text(size=7), 
+              legend.text=element_text(size=12), 
+              legend.title=element_text(size=12),
+              plot.title = element_text(size=7),
+              legend.position="bottom")
+
+
+
+
+
+
+# nbinom.full
+nbinom.full.plot = ggplot(dat, aes(
+        x = hits, 
+        y = predict(nbinom.full, type="response"))) + 
+        geom_smooth(method = "lm", colour = "red") +
+        geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
+        theme_bw() +
+        ggtitle("All Variables, Full Dataset (Negative Binomial Reg.)") + 
+        scale_y_continuous(name='Hits Predicted') +
+        scale_x_continuous(name='Hits Observed') +
+        labs(subtitle = paste("RMSE: ", round(as.numeric(accuracy(list(nbinom.full), plotit=F, digits=3)["Fit.criteria"]$Fit.criteria["RMSE"]),3))) +
+        theme(axis.text.y = element_text(size=7), 
+              axis.text.x = element_text(size=7), 
+              axis.title.y = element_text(size=7), 
+              axis.title.x = element_text(size=7), 
+              legend.text=element_text(size=12), 
+              legend.title=element_text(size=12),
+              plot.title = element_text(size=7),
+              legend.position="bottom")
+
+
+# Compile all plots
+p_load(ggpubr)
+ggarrange(all.vars.model.ols.plot,
+          all.vars.model.ols.cook.plot,
+          all.vars.model.ols.cook.dffits.plot,
+          best.vars.model.ols.plot,
+          rlm.best.vars.entire.df.plot,
+          rlm.best.vars.truncated.df.plot,
+          full.model.poisson.plot,
+          nbinom.full.plot,
+         # labels = c("A", "B", "C"),
+          ncol = 2, nrow = 4)
+```
+
+
+# Conclusion
+
+According to all these analyses, Model 2 (i.e. linear, with corrected Cook's Distances) does the job the best. It has also the best fit.
+
+# Wrapping Up
+
+Now I will generate the first deliverable.
+
+1. Two columns: (1) **row_num** and **hits**, for all which **hits** is not NA.
+
+```{r , message=FALSE, warning=FALSE}
+dat.deliverable$hits[dat.deliverable$hits == "\\N"] <- NA # Declare NAs
+
+csv.dat = data.frame( # Generate the DF
+        row_num = dat.deliverable$row_num[is.na(dat.deliverable$hits)],
+        hits = dat.deliverable$hits[is.na(dat.deliverable$hits)]
+        )
+
+write.csv(csv.dat,'deliverable1.csv') # Export DF to CSV
+```
+
+2. The second deliverable will be the `.rmd` file. 
+
+3. The third one, will be the PDF that the `.rmd` generates.
