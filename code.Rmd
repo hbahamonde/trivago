@@ -855,8 +855,8 @@ nbinom.full.plot = ggplot(dat, aes(
 ```
 
 Now, lets plot it.
+
 ```{r , message=FALSE, warning=FALSE}
-# Compile all plots
 p_load(ggpubr)
 ggarrange(all.vars.model.ols.plot,
           all.vars.model.ols.cook.plot,
@@ -866,8 +866,8 @@ ggarrange(all.vars.model.ols.plot,
           rlm.best.vars.truncated.df.plot,
           full.model.poisson.plot,
           nbinom.full.plot,
-         # labels = c("A", "B", "C"),
-          ncol = 2, nrow = 4)
+          ncol = 2, nrow = 4
+          )
 ```
 
 
