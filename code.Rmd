@@ -76,7 +76,10 @@ p_load(foreign)
 dat <- read.csv("data.csv",
                 header = T, # lets name the columns
                 sep = ";") # lets separate every entry by ";"
-dat.deliverable = dat # this is to send you guys the row_nums for all cases where hits is NA. More on this, at the very end.
+
+# this is to send you guys the row_nums for all cases where hits is NA. 
+# More on this, at the very end.
+dat.deliverable = dat
 
 p_load(dplyr)
 dat = sample_n(dat, 10000)
@@ -161,7 +164,7 @@ levels(dat$entry_page)[levels(dat$entry_page)>"2116"] <- "0"
 Now, lets plot the distribution of levels of the new variable:
 ```{r , message=FALSE, warning=FALSE}
 p_load(lattice)
-histogram(dat$entry_page)
+histogram(dat$entry_page, xlab = "Entry Page")
 ```
 
 Ok. This looks way better. Instead of having almost 150 landing pages, we have simplified this variable to the most important ones.
@@ -194,7 +197,7 @@ To make a simpler model, I will dichotomize "path_id_set": now observations are 
 dat$path_id_set = as.numeric(dat$path_id_set == 2)
 
 p_load(lattice)
-histogram(as.factor(dat$path_id_set))
+histogram(as.factor(dat$path_id_set), xlab = "Path Id Set")
 ```
 
 9. Variable "traffic_type" is numeric. It makes much more sense to think of this variable as a factor (email, search engine, etc.).
@@ -259,7 +262,7 @@ In this section, I will fit the data using several models and strategies. My gen
 3. With the selected variables, estimate another linear model.
 4. Run standard diagnostics, inspect fit, check assumptions (heteroskedasticity, etc.).
 5. Consider estimating a robust linear model.
-6. Next, move to GLMs. Investigate the plausibility a Poisson or a Negative Binomial model fits the data better.
+6. Next, move to GLMs. Investigate the plausibility of a Poisson and/or a Negative Binomial model fits the data better.
 7. Conclude, and recommend the most efficient model.
 
 Lets define the full equation.
@@ -688,11 +691,12 @@ texreg(list(all.vars.model.ols, # Model 1
        label = "tab:1",
        custom.note = list("%stars. DV: Hits "),
        #fontsize = "tiny",
+       scalebox = 0.4,
        center = TRUE,
        digits = 3,
        table = TRUE,
        float.pos = "h",
-       caption = ""
+       caption = "Different Models to Estimate the Number of Hits"
        )
 ```
 
@@ -703,12 +707,12 @@ Lets now take a quick look at the plots.
 ```{r , message=FALSE, warning=FALSE}
 p_load(ggplot2,dvmisc,qpcR)
 
-all.vars.model.ols.plot = ggplot(dat, aes(
+ggplot(dat, aes(
         x = hits, 
         y = predict.lm(all.vars.model.ols, type="response"))) +
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) + 
-        theme_bw() + coord_fixed(xlim = c(0, 800), ylim = c(0, 500)) +
+        theme_bw() + 
         ggtitle("M1: All Variables, Full Dataset (OLS)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
@@ -723,12 +727,12 @@ all.vars.model.ols.plot = ggplot(dat, aes(
               legend.position="bottom",
               plot.subtitle=element_text(size=7, face="italic")) 
 
-all.vars.model.ols.cook.plot = ggplot(dat.cook, aes(
+ggplot(dat.cook, aes(
         x = hits, 
         y = predict.lm(all.vars.model.ols.cook, type="response"))) + 
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
-        theme_bw() + coord_fixed(xlim = c(0, 800), ylim = c(0, 500)) +
+        theme_bw() + 
         ggtitle("M2: All Variables, Fixed CooksD Dataset (OLS)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
@@ -743,12 +747,12 @@ all.vars.model.ols.cook.plot = ggplot(dat.cook, aes(
               legend.position="bottom",
               plot.subtitle=element_text(size=7, face="italic"))
 
-all.vars.model.ols.cook.dffits.plot = ggplot(dat.cook.dffits, aes(
+ggplot(dat.cook.dffits, aes(
         x = hits, 
         y = predict.lm(all.vars.model.ols.cook.dffits, type="response"))) + 
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
-        theme_bw() + coord_fixed(xlim = c(0, 800), ylim = c(0, 500)) +
+        theme_bw() + 
         ggtitle("M3: All Variables, Fixed CooksD and DFFITs Dataset (OLS)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
@@ -763,12 +767,12 @@ all.vars.model.ols.cook.dffits.plot = ggplot(dat.cook.dffits, aes(
               legend.position="bottom",
               plot.subtitle=element_text(size=7, face="italic"))
 
-best.vars.model.ols.plot = ggplot(dat.cook.dffits, aes(
+ggplot(dat.cook.dffits, aes(
         x = hits, 
         y = predict.lm(best.vars.model.ols, type="response"))) + 
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
-        theme_bw() + coord_fixed(xlim = c(0, 800), ylim = c(0, 500)) +
+        theme_bw() + 
         ggtitle("M4: Best Variables, Fixed CooksD and DFFITs Dataset (OLS)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
@@ -783,12 +787,12 @@ best.vars.model.ols.plot = ggplot(dat.cook.dffits, aes(
               legend.position="bottom",
               plot.subtitle=element_text(size=7, face="italic"))
 
-rlm.best.vars.entire.df.plot = ggplot(dat, aes(
+ggplot(dat, aes(
         x = hits, 
         y = predict.lm(rlm.best.vars.entire.df, type="response"))) + 
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
-        theme_bw() + coord_fixed(xlim = c(0, 800), ylim = c(0, 500)) +
+        theme_bw() + 
         ggtitle("M5: All Variables, Full Dataset (Robust Regression)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
@@ -804,12 +808,12 @@ rlm.best.vars.entire.df.plot = ggplot(dat, aes(
               plot.subtitle=element_text(size=7, face="italic"))
 
 
-rlm.best.vars.truncated.df.plot = ggplot(dat.cook.dffits, aes(
+ggplot(dat.cook.dffits, aes(
         x = hits, 
         y = predict.lm(rlm.best.vars.truncated.df, type="response"))) + 
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
-        theme_bw() + coord_fixed(xlim = c(0, 800), ylim = c(0, 500)) +
+        theme_bw() + 
         ggtitle("M6: Best Variables, Fixed CooksD and DFFITs Dataset") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
@@ -824,12 +828,12 @@ rlm.best.vars.truncated.df.plot = ggplot(dat.cook.dffits, aes(
               legend.position="bottom",
               plot.subtitle=element_text(size=7, face="italic"))
 
-full.model.poisson.plot = ggplot(dat, aes(
+ggplot(dat, aes(
         x = hits, 
         y = predict(full.model.poisson, type="response"))) + 
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) +
-        theme_bw() + coord_fixed(xlim = c(0, 800), ylim = c(0, 500)) +
+        theme_bw() + 
         ggtitle("M7: All Variables, Full Dataset (Poisson Regression)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
@@ -844,12 +848,12 @@ full.model.poisson.plot = ggplot(dat, aes(
               legend.position="bottom",
               plot.subtitle=element_text(size=7, face="italic"))
 
-nbinom.full.plot = ggplot(dat, aes(
+ggplot(dat, aes(
         x = hits, 
         y = predict(nbinom.full, type="response"))) + 
         geom_smooth(method = "lm", colour = "red") +
         geom_jitter(alpha = .01, width = 80, height = 10, size=0.01, shape=23) + 
-        theme_bw() + coord_fixed(xlim = c(0, 800), ylim = c(0, 500)) +
+        theme_bw() + 
         ggtitle("M8: All Variables, Full Dataset (Negative Binomial Reg.)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
@@ -865,22 +869,7 @@ nbinom.full.plot = ggplot(dat, aes(
               plot.subtitle=element_text(size=7, face="italic"))
 ```
 
-Now, lets plot it.
-
-```{r , message=FALSE, warning=FALSE}
-p_load(gridExtra)
-grid.arrange(all.vars.model.ols.plot,
-          all.vars.model.ols.cook.plot,
-          all.vars.model.ols.cook.dffits.plot,
-          best.vars.model.ols.plot,
-          rlm.best.vars.entire.df.plot,
-          rlm.best.vars.truncated.df.plot,
-          full.model.poisson.plot,
-          nbinom.full.plot,
-          ncol = 1, nrow = 8
-          )
-```
-
+---
 
 # Conclusion
 
