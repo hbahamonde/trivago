@@ -578,10 +578,11 @@ rlm.best.vars.entire.df = rlm(
         )
 ```
 
-Lets evaluate the RME.
+Lets evaluate the RMSE.
 
 ```{r , message=FALSE, warning=FALSE}
-sqrt(rev(anova(rlm.best.vars.entire.df)$"Mean Sq")[1]) # RMSE
+p_load(qpcR)
+RMSE(rlm.best.vars.entire.df) # RMSE
 ```
 
 Not a very good job. Lets consider Model 6, where we employ the same robust approach, but with the truncated dataset.
@@ -600,8 +601,8 @@ rlm.best.vars.truncated.df = rlm(
 Lets now calculate the RMSE.
 
 ```{r , message=FALSE, warning=FALSE}
-p_load(DMwR)
-as.numeric(regr.eval(dat$hits, rlm.best.vars.entire.df$fitted.values)[3]) # RMSE
+p_load(qpcR)
+RMSE(rlm.best.vars.truncated.df) # RMSE 
 ```
 
 OK; this is better but not the the best (compared to Model 2).
@@ -809,7 +810,7 @@ ggplot(dat, aes(
         ggtitle("M5: All Variables, Full Dataset (Robust Regression)") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
-        labs(subtitle = paste("RMSE: ", round(as.numeric(regr.eval(dat$hits, rlm.best.vars.entire.df$fitted.values)[3]), 3))) +
+        labs(subtitle = paste("RMSE: ", round(RMSE(rlm.best.vars.entire.df), 3))) +
         theme(axis.text.y = element_text(size=7), 
               axis.text.x = element_text(size=7), 
               axis.title.y = element_text(size=7), 
@@ -830,7 +831,7 @@ ggplot(dat.cook.dffits, aes(
         ggtitle("M6: Best Variables, Fixed CooksD and DFFITs Dataset") + 
         scale_y_continuous(name='Hits Predicted') +
         scale_x_continuous(name='Hits Observed') +
-        labs(subtitle = paste("RMSE: ", round(as.numeric(regr.eval(dat.cook.dffits$hits, rlm.best.vars.truncated.df$fitted.values)[3]), 3))) +
+        labs(subtitle = paste("RMSE: ", round(RMSE(rlm.best.vars.truncated.df), 3))) +
         theme(axis.text.y = element_text(size=7), 
               axis.text.x = element_text(size=7), 
               axis.title.y = element_text(size=7), 
