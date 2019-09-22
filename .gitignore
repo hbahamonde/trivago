@@ -16,3 +16,5 @@ code_files/figure-latex/
 *.pdf
 
 docs/code.html
+
+dat.RData
