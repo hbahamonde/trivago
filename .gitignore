@@ -13,8 +13,6 @@ code_files/figure-latex/
 
 *.md
 
-*.pdf
-
 docs/code.html
 
 dat.RData
