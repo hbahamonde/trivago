@@ -3,12 +3,12 @@ title: "Trivago Assignment"
 author: "Hector Bahamonde"
 date: "September, 2019"
 output:
-  pdf_document:
-    toc: no
-  fontsize: 9pt
   html_document:
     toc: yes
     toc_float: yes
+  fontsize: 9pt
+  pdf_document:
+    toc: no
   fig_caption: yes
   theme: cosmo
 ---
