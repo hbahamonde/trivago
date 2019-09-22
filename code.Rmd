@@ -894,7 +894,7 @@ According to all these analyses, Model 2 (i.e. linear, with corrected Cook's Dis
 
 I had lots of fun doing this! Ok, now I will generate the first deliverable.
 
-1. Two columns: (1) **row_num** and **hits**, for all which **hits** is not NA.
+1. Two columns: (1) **row_num** and **hits**, for all which **hits** is NA.
 
 ```{r , message=FALSE, warning=FALSE}
 dat.deliverable$hits[dat.deliverable$hits == "\\N"] <- NA # Declare NAs
