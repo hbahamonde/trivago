@@ -6,3 +6,11 @@ code_files/figure-latex/
 *.log
 
 *.png
+
+*.tex
+
+*.aux
+
+*.md
+
+*.pdf
