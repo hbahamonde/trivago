@@ -50,6 +50,10 @@ pre { /* Code block */
 }
 </style>
 
+# Presentation
+
+Several models were estimated, including linear, (linear) robust and non-linear (Poisson and Negative Binomial). **It was found that the linear approach employing a CooksD-corrected dataset did the best job minimizing the RMSE**. The results will be displayed in `.pdf` and `.html`. The `.pdf` file has fixed margins, hence not all outputs will show up (particularly, the super wide stepwise regression output). The `.rmd` file contains all reproducible code, and I took really good care the file is absolutely self-contained. There is also a GitHub repo (https://github.com/hbahamonde/trivago) where you can follow all my commits (and see my other work too, if you want). For convenience, I have also published the html version of this assignment (code and output) in my website  (www.HectorBahamonde.com/Trivago). Since Zealpath does not allow me to send a fourth file (the `.html` file), you will need to check that out visiting my website, if so desired. That's important though, as wide output won't show up properly in the `.pdf` (it will in the `.rmd` file, though). Feel free to ask me any questions.
+
 # Introduction
 
 Lets begin fresh:
@@ -69,8 +73,6 @@ if (!require("pacman")) install.packages("pacman"); library(pacman)
 
 Lets load the dataset:
 
-# WITH RANDOM SAMPLE DUE TO BIG DATA: FIX BEFORE SENDING
-
 ```{r , message=FALSE, warning=FALSE}
 p_load(foreign)
 dat <- read.csv("data.csv",
@@ -80,11 +82,7 @@ dat <- read.csv("data.csv",
 # this is to send you guys the row_nums for all cases where hits is NA. 
 # More on this, at the very end.
 dat.deliverable = dat
-
-p_load(dplyr);set.seed(0)
-dat = sample_n(dat, 10000)
 ```
-
 
 Lets summarize/inspect the data:
 
@@ -114,7 +112,7 @@ Now, lets drop all rows that contain NAs in the dataset. We don't want to have N
 dat = na.omit(dat) # deletes NAs.
 ```
 
-3. Variable "hits" is factor. Since we care for the number of hits, will change it to numeric.
+3. Variable "hits" is factor. Since we care for the number (i.e. counts) of hits, will change it to numeric.
 ```{r , message=FALSE, warning=FALSE}
 is(dat$hits)[1] # lets ask R what "hits" is.
 dat$hits = as.numeric(dat$hits) # for the rest of the assignment, will treat it as numeric
@@ -132,7 +130,7 @@ is(dat$agent_id)[1] # lets ask R what "agent_id" is.
 dat$agent_id = as.factor(dat$agent_id) # better as factor.
 ```
 
-6. The factor variable "day of the week" is not ordered. Statistically, it won't matter, but we might need it ordered if we want to plot the predicted weekly hits. Lets fix it.
+6. The factor variable "day of the week" is not ordered. Statistically, it won't matter, but we might need it ordered if we wanted to plot the predicted weekly hits. Lets fix it.
 ```{r , message=FALSE, warning=FALSE}
 levels(dat$day_of_week) # see, levels are not ordered. 
 dat$day_of_week = factor(dat$day_of_week,levels(dat$day_of_week)[c(2,6,7,5,1,3,4)])
@@ -206,15 +204,15 @@ is(dat$traffic_type)[1] # is numeric.
 dat$traffic_type = as.factor(dat$traffic_type) # Better as factor.
 ```
 
-10. Var. "day_of_week" to numeric (1 = Monday...till 7 = Sunday).
+10. Will change the "day_of_week" variable to numeric (1 = Monday...till 7 = Sunday). Theoretically, I think it makes more sense to think about this variable as numeric. Lets think of something like "the degree in which weekend is approaching." Perhaps, consumers make vacations plans (and visit www.Trivago.com) during weekends. Will see...
 ```{r , message=FALSE, warning=FALSE}
 dat$day_of_week.num = as.numeric(as.factor(dat$day_of_week))
 
-# test
+# testing
 data.frame(
   old = dat$day_of_week,
   new = dat$day_of_week.num
-)[100:110,] # from row 100 to row 110. It looks OK.
+)[100:110,] # just to take a look, from row 100 to row 110. OK, it looks good.
 ```
 
 # Descriptives
@@ -222,7 +220,7 @@ data.frame(
 p_load(lattice)
 histogram(dat$hits) # plot the DV
 ```
-**First impressions**: of course, it doesn't look like a normal distribution. It can't be, anyways. The data generating process (the "number of hits") might follow a Poisson distribution. That is, discrete positive numbers. But lets take a closer look at dependent variable. Normal distributions have the same mean, mean, and mode. Lets see:
+**First impressions**: of course, it doesn't look like a normal distribution. It can't be, anyways. The data generating process (the "number of hits") might follow a Poisson distribution. That is, counts in the form of discrete positive numbers. But lets take a closer look at dependent variable. Normal distributions have the same mean, mean, and mode. Lets see:
 
 
 ```{r , message=FALSE, warning=FALSE}
@@ -255,14 +253,14 @@ save(dat, file = "dat.RData")
 
 # Models
 
-In this section, I will fit the data using several models and strategies. My general approach will be the following:
+In this section, I will fit the data using several modeling strategies. My general approach will be the following:
 
-1. Define a full model with all possible variables.
-2. Estimate a linear model in a stepwise fashion. 
+1. Define a full linear model with all possible variables.
+2. Using this full linear model, find the best possible predictors in a stepwise fashion. 
 3. With the selected variables, estimate another linear model.
 4. Run standard diagnostics, inspect fit, check assumptions (heteroskedasticity, etc.).
-5. Consider estimating a robust linear model.
-6. Next, move to GLMs. Investigate the plausibility of a Poisson and/or a Negative Binomial model fits the data better.
+5. Using the best predictors found in the stepwise process, consider estimating a robust linear model.
+6. Next, move to GLMs. Investigate the plausibility of a Poisson and/or a Negative Binomial models.
 7. Conclude, and recommend the most efficient model.
 
 Lets define the full equation.
@@ -289,7 +287,7 @@ all.vars.model.ols = lm(formula.all, dat)
 
 Now, before discussing the output of the unrestricted model, lets first find the most efficient subset of variables. Criteria will be minimizing the RMSE. Next, I use  the `ols_step_best_subset` function. Usually stepwise regression selects variables with the lowest p-values. Hence, I decided to take a slighlty different approach by focusing on the RMSE instead.
 
-**Note**: (a) this might take a while, depending on your machine. Also, (b) the outout is very wide, and might not fit the PDF. That's why I'm sending also a HTML file, which you guys may see it from almost every web browser. Most importantly, the column we care about (*MSEP: Estimated error of prediction*), might not appear printed on the PDF.
+**Note**: (a) this might take a while, depending on your machine. Also, (b) the outout is very wide, and might not fit the PDF. That's why I'm sending also a HTML file, which you guys may see it from almost every web browser. The HTML will be available in my website www.HectorBahamonde.com/Trivago too. I designed my website using GitHub too, to ensure full compatibility with r, LaTeX, Markdown, etc. There is also a GitHub repo (https://github.com/hbahamonde/trivago) where you can follow my work. I strongly suggest you to take a look at the HTML file (either the one I sent, or the one that's published---both are the same). For instance, regarding the following output, since it is so wide, the column we care about (*MSEP: Estimated error of prediction*) will not show up in the PDF.
 
 ```{r , message=FALSE, warning=FALSE}
 p_load(olsrr) # for "ols_step_best_subset" function.
@@ -311,7 +309,12 @@ p_load(lattice)
 xyplot(predict.lm(all.vars.model.ols, type="response") ~ dat$hits,
        xlab = "Observed Hits", 
        ylab = "Predicted Hits",
-       main = "Model 1: Observed v. Fitted")
+       main = "Model 1: Observed v. Fitted",
+       panel = function(x, ...) {
+               panel.xyplot(x, ..., alpha = 0.2)
+               panel.lmline(x, y, ...)
+               }
+       )
 ```
 
 Not so good. Lots of influence (upper-left corner of plot) and leverage problems here---pretty much, just across all the x-axis. My take, not a good fit (i.e. not a good enough RMSE). 
@@ -323,7 +326,11 @@ p_load(lattice)
 xyplot(all.vars.model.ols$residuals ~ dat$hits,
        xlab = "Observed Hits", 
        ylab = "Residuals",
-       main = "Model 1: Residual Plot")
+       main = "Model 1: Residual Plot", 
+       panel = function(x, ...) {
+               panel.xyplot(x, ..., alpha = 0.2)
+               }
+       )
 ```
 
 Huge problems here. We should be able to see no patterns, which we do: the residuals go up as the X variable goes up too. That's not a good sign.
@@ -353,7 +360,7 @@ xyplot(dat$cooks.all.ols ~ predict(all.vars.model.ols,  type="response"),
        ylab = "Cooks D",
        main = "Model 1: Influencial Observations (Cooks D)",
        panel = function(x, ...) {
-               panel.xyplot(x, ..., alpha = 0.3)
+               panel.xyplot(x, ..., alpha = 0.2)
                }
        )
 ```
@@ -366,7 +373,7 @@ Lets subset the data then.
 dat.cook = subset(dat, cooks.all.ols < as.numeric(summary(dat$cooks.all.ols)[5])) 
 ```
 
-Now we have a smaller DF, but with less influence problems. Lets fit Model 2, all variables, but using the better dataset (i.e. `dat.cook`).
+Now we have a smaller DF, but with less influence problems. Lets fit Model 2, all variables, but using the CooksD-corrected dataset (i.e. `dat.cook`).
 
 ```{r , message=FALSE, warning=FALSE}
 all.vars.model.ols.cook = lm(formula.all, dat.cook)
@@ -385,7 +392,7 @@ xyplot(dcooks.distance.ols.fixed ~ predict(all.vars.model.ols.cook,  type="respo
        ylab = "Cooks D",
        main = "Model 2: Influencial Observations (Influential Obs. Dropped)",
        panel = function(x, ...) {
-               panel.xyplot(x, ..., alpha = 0.3)
+               panel.xyplot(x, ..., alpha = 0.2)
        }
 )
 ```
@@ -405,10 +412,10 @@ xyplot(predict(all.vars.model.ols.cook,  type="response") ~ dat.cook$hit,
        xlab = "Observed Hits", 
        ylab = "Predicted Hits",
        main = "Model 2: Full Model Without Most Influencial Observations",
-       panel = function(x,
-                y, ...) {
-               panel.xyplot(x, y, ...)
-               panel.lmline(x, y, ...)
+       panel = function(x, ...) {
+               panel.xyplot(x,...)
+               panel.lmline(x, ...)
+               panel.xyplot(x, ..., alpha = 0.2)
                }
        )
 ``` 
@@ -441,7 +448,7 @@ densityplot(dat.cook$dffits.ols,
             )
 ```
 
-The main take away is the following: if we chop the top ends of the distribution (i.e. the ones with high leverage), we still get the most of information out it. Lets drop these data points with high leverage (`r  nrow(dat.cook)- nrow(subset(dat.cook, dffits.ols > - 0.02 & dffits.ols < 0.02))` observations). Actually, is not a lot, but lets see if we improve fit, decreasing error, and getting a better RMSE.
+The main take away is the following: if we chop the top ends of the distribution (i.e. the ones with high leverage), we still get the most of information out of this distribution. Lets drop these data points with high leverage (`r  nrow(dat.cook)- nrow(subset(dat.cook, dffits.ols > - 0.02 & dffits.ols < 0.02))` observations). Actually, is not a lot, but lets see if we improve fit, decreasing error, and getting a better RMSE.
 
 First, lets drop data points with high/low leverage:
 
@@ -449,7 +456,7 @@ First, lets drop data points with high/low leverage:
 dat.cook.dffits = subset(dat.cook, dffits.ols > - 0.02 & dffits.ols < 0.02)
 ```
 
-Next, lets fit Model 3, now without high/low DFFITS (and certainly, without high Cooks Distance values).
+Next, lets fit Model 3, now without high/low DFFITS (and certainly, without high Cooks Distance values). Please remember that we are still working with the already CooksD-corrected dataset.
 
 ```{r , message=FALSE, warning=FALSE}
 all.vars.model.ols.cook.dffits = lm(formula.all, dat.cook.dffits)
@@ -497,7 +504,7 @@ xyplot(predict(all.vars.model.ols.cook.dffits,  type="response") ~ dat.cook.dffi
        )
 ```
 
-OK, so far we've fitted three models (full, good Cooks, and good Cooks and DFFITs). Lets use this truncated DF (i.e. `dat.cook.dffits`) to take the stepwise regression route. 
+OK, so far we've fitted three models: (1) full, (2) good Cooks, and (3) good Cooks and good DFFITs. Lets use this truncated DF (i.e. `dat.cook.dffits`) to take the stepwise regression route again. 
 
 ```{r , message=FALSE, warning=FALSE}
 p_load(olsrr)
@@ -507,7 +514,14 @@ ols_step_best_subset(all.vars.model.ols.cook.dffits)
 If we want to maximize parsimony and minize RMSE, now model 6 does the best job (with 2 less predictors now). Lets define a new formula then, with the best predictors.
 
 ```{r , message=FALSE, warning=FALSE}
-formula.best = as.formula(hits ~ locale + agent.id + entry.page + path.id.set + traffic.type + session.duration)
+formula.best = as.formula(hits ~ 
+                                  locale + 
+                                  agent.id + 
+                                  entry.page + 
+                                  path.id.set + 
+                                  traffic.type + 
+                                  session.duration
+                          )
 ```
 
 Lets use this formula to fit Model 4, using the `dat.cook.dffits` dataset.
@@ -524,7 +538,7 @@ xyplot(predict(best.vars.model.ols,  type="response") ~ dat.cook.dffits$hit,
        grid = TRUE,
        xlab = "Observed Hits", 
        ylab = "Predicted Hits",
-       main = "Model 4: Best Model Without Most Influencial Observations",
+       main = "Model 4: Linear Model Without Most Influencial Observations\nReduced Form Model, after stepwise reg.",
        panel = function(x,
                 y, ...) {
                panel.xyplot(x, y, ...)
@@ -550,10 +564,11 @@ sqrt(rev(anova(best.vars.model.ols)$"Mean Sq")[1]) # RMSE
 
 Not much better. It's almost the same as Model 3, after loosing a couple hundreads obs. In fact, the RMSE is a little bit higher. Lets try a different strategy.
 
-Now, lets turn to the robust regression. These models weight the contribution of every data point by the size of the standard error: the more far away a data point is, the less "importance" that data point will have. This strategy works in cases like this, where we have leverage/influence issues.
+Now, lets turn to the robust regression. These models weight the contribution of every data point by the size of the standard error: the more far away a data point is (i.e. the more error a data point brings into the model), the less "importance" that data point will have. This strategy works in cases like this, where we have leverage/influence issues.
 
 ```{r , message=FALSE, warning=FALSE}
-dat$agent.id = as.numeric(as.character(dat$agent.id)) # convert this, as it messes up with the LaTex dollar sign.
+# convert this, as it messes up with the LaTex dollar sign.
+dat$agent.id = as.numeric(as.character(dat$agent.id))
 
 p_load(MASS)
 rlm.best.vars.entire.df = rlm(
@@ -582,7 +597,7 @@ rlm.best.vars.truncated.df = rlm(
         )
 ```
 
-Lets now calculate the RMSE
+Lets now calculate the RMSE.
 
 ```{r , message=FALSE, warning=FALSE}
 p_load(DMwR)
@@ -662,11 +677,9 @@ RMSE(nbinom.full)
 
 It's better than the Poisson regression. Overall, the evidence employing GLMs is not conclusive. The data generating process seems to be Poisson, but we do have overdispertion problems.
 
-Lets take a quick look at the coefficients, standard errors, and r-squares.
-
 # Table 
 
-The table summarizes all models estimated in this case study.
+Lets take a quick look at the coefficients, standard errors, and r-squares. The following table summarizes all models estimated in this case study.
 
 ```{r , message=FALSE, warning=FALSE, results='asis'}
 p_load(texreg)
@@ -689,7 +702,7 @@ texreg(list(all.vars.model.ols, # Model 1
                 "(M7: Poisson)",
                 "(M8: Neg Bin)"),
        label = "tab:1",
-       custom.note = list("%stars. DV: Hits "),
+       custom.note = list("%stars. DV: Hits"),
        #fontsize = "tiny",
        scalebox = 0.4,
        center = TRUE,
@@ -875,9 +888,10 @@ ggplot(dat, aes(
 
 According to all these analyses, Model 2 (i.e. linear, with corrected Cook's Distances) does the job the best. It has also the best fit.
 
+
 # Wrapping Up
 
-Now I will generate the first deliverable.
+I had lots of fun doing this! Ok, now I will generate the first deliverable.
 
 1. Two columns: (1) **row_num** and **hits**, for all which **hits** is not NA.
 
@@ -896,7 +910,5 @@ write.csv(csv.dat,'deliverable1.csv') # Export DF to CSV
 
 3. The third one, will be the PDF that the `.rmd` generates.
 
-```{r , message=FALSE, warning=FALSE}
-p_load(ezknitr)
-ezknit(file = "code.Rmd", out_dir = "docs", keep_html = TRUE, keep_md = FALSE, params = list("dat" = "dat.RData"))
-```
+4. Don't forget that www.HectorBahamonde.com/Trivago contains the HTML version of this code/output (this is important so you can see wide outputs). Unfortunately, Zealpath does not allow me to send a fourth file.
+
