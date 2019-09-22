@@ -683,8 +683,8 @@ It's better than the Poisson regression. Overall, the evidence employing GLMs is
 Lets take a quick look at the coefficients, standard errors, and r-squares. The following table summarizes all models estimated in this case study.
 
 ```{r , message=FALSE, warning=FALSE, results='asis'}
-p_load(texreg)
-texreg(list(all.vars.model.ols, # Model 1
+p_load(texreg) # use htmlreg or texreg accordingly
+htmlreg(list(all.vars.model.ols, # Model 1
             all.vars.model.ols.cook, # Model 2
             all.vars.model.ols.cook.dffits, # Model 3
             best.vars.model.ols, # Model 4
@@ -702,14 +702,14 @@ texreg(list(all.vars.model.ols, # Model 1
                 "(M6: Rlm)",
                 "(M7: Poisson)",
                 "(M8: Neg Bin)"),
-       label = "tab:1",
+       # label = "tab:1", # Option is only for tex tables, not HTML ones.
        custom.note = list("%stars. DV: Hits"),
        #fontsize = "tiny",
-       scalebox = 0.4,
+       # scalebox = 0.4, # Option is only for tex tables, not HTML ones.
        center = TRUE,
        digits = 3,
-       table = TRUE,
-       float.pos = "h",
+       # table = TRUE, # Option is only for tex tables, not HTML ones.
+       # float.pos = "h",
        caption = "Different Models to Estimate the Number of Hits"
        )
 ```
